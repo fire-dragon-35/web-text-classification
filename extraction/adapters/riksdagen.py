@@ -9,17 +9,17 @@ EXTRACTOR = "riksdagen-sfs"
 
 SFS_URL = re.compile(r"https?://(?:www\.|data\.)?riksdagen\.se/.*[/_]sfs-(\d{4})-(\d+)")
 AMENDED_THROUGH = re.compile(r"t\.o\.m\. SFS (\d{4}:\d+)")
-BLOCK_BREAK = re.compile(r"\n{2,}")
+BLOCK_BREAK = re.compile(r"\n\s*\n")
 SECTION_START = re.compile(r"(\d+(?: [a-z])? §)\s")
-CHAPTER_START = re.compile(r"(?:/[^\n]*/\n)?(\d+(?: [a-z])?) [Kk]ap\. [A-ZÅÄÖ]")
+CHAPTER_START = re.compile(r"(?:/[^/]*/ )?(\d+(?: [a-z])?) [Kk]ap\. [A-ZÅÄÖ]")
 REPEALED = re.compile(r"\d+(?: [a-z])? §\s+[Hh]ar upphävts")
 TRANSITIONAL_PROVISIONS = "Övergångsbestämmelser"
 SENTENCE_ENDINGS = (".", ":", ";", ",")
 
 
 def _clean(text: str) -> str:
-    lines = [line.rstrip() for line in text.replace("\r\n", "\n").split("\n")]
-    return "\n".join(lines).strip()
+    blocks = (" ".join(block.split()) for block in BLOCK_BREAK.split(text))
+    return "\n\n".join(block for block in blocks if block)
 
 
 def _ends_with_heading(blocks: list[str]) -> bool:
@@ -62,7 +62,7 @@ class RiksdagenSFS(Website):
                 break
             if chapter_start := CHAPTER_START.match(block):
                 chapter = f"{chapter_start[1]} kap. "
-                heading = block.split("\n")[-1]
+                heading = block[chapter_start.start(1) :]
                 current = None
             elif section_start := SECTION_START.match(block):
                 if current and _ends_with_heading(current):

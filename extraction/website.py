@@ -33,13 +33,29 @@ def _headings_as_paragraphs(html: str) -> str:
     return lxml.html.tostring(tree, encoding="unicode")
 
 
-def _words(text: str) -> int:
-    return len(HEADING.sub(r"\2", text).split())
+def _split(text: str, title: str) -> list[Section]:
+    found: list[Section] = []
+    heading, level, start = title, 1, 0
+    for match in HEADING.finditer(text):
+        _append_section(found, heading, level, text[start : match.start()])
+        heading, level, start = match[2], len(match[1]), match.end()
+    _append_section(found, heading, level, text[start:])
+    return found
 
 
-def _with_most_headings(text: str, with_headings: str) -> str:
+def _append_section(found: list[Section], heading: str, level: int, text: str) -> None:
+    if text := text.strip():
+        found.append(Section(ordinal=len(found), heading=heading, level=level, text=text))
+
+
+def _section_words(text: str, title: str) -> int:
+    return sum(len(section.heading.split()) + len(section.text.split()) for section in _split(text, title))
+
+
+def _with_most_headings(text: str, with_headings: str, title: str) -> str:
     more_headings = len(HEADING.findall(with_headings)) > len(HEADING.findall(text))
-    return with_headings if more_headings and _words(with_headings) >= _words(text) else text
+    no_text_lost = _section_words(with_headings, title) >= _section_words(text, title)
+    return with_headings if more_headings and no_text_lost else text
 
 
 def _absolute(href: str, base: str) -> str | None:
@@ -83,30 +99,20 @@ class Website:
                 )
             else:
                 warnings.append(f"selector matched nothing: {self._selector}")
-        text = _with_most_headings(_markdown(html), _markdown(_headings_as_paragraphs(html)))
+        title = (metadata and metadata.title) or ""
+        text = _with_most_headings(_markdown(html), _markdown(_headings_as_paragraphs(html)), title)
         if len(text) < MIN_CHARS:
             warnings.append(f"too little text: {len(text)} chars")
         extractor = f"trafilatura {trafilatura.__version__}"
         if self._selector:
             extractor = f"selector:{self._selector} + {extractor}"
         return Page(
-            title=metadata.title or "",
-            page_date=date.fromisoformat(metadata.date) if metadata.date else None,
+            title=title,
+            page_date=date.fromisoformat(metadata.date) if metadata and metadata.date else None,
             text=text,
             extractor=extractor,
             warnings=warnings,
         )
 
     def sections(self, page: Page) -> list[Section]:
-        found: list[Section] = []
-        heading, level, start = page.title, 1, 0
-        for match in HEADING.finditer(page.text):
-            _append_section(found, heading, level, page.text[start : match.start()])
-            heading, level, start = match[2], len(match[1]), match.end()
-        _append_section(found, heading, level, page.text[start:])
-        return found
-
-
-def _append_section(found: list[Section], heading: str, level: int, text: str) -> None:
-    if text := text.strip():
-        found.append(Section(ordinal=len(found), heading=heading, level=level, text=text))
+        return _split(page.text, page.title)

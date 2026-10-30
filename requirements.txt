@@ -1,5 +1,10 @@
-requests
-trafilatura
-cssselect
-pydantic
-typer
+anthropic==2.3.0
+cssselect==1.6.0
+lxml==6.1.3
+pydantic==2.14.2
+pypdf==6.21.4
+pyyaml==6.0.3
+requests==2.34.2
+rich==15.0.0
+trafilatura==2.3.1
+typer==0.27.3

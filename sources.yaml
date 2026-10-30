@@ -1,0 +1,10 @@
+sources:
+  - id: las
+    urls: ["https://data.riksdagen.se/dokument/sfs-1982-80.json"]
+  - id: unionens
+    urls: ["https://www.unionensakassa.se/"]
+    selector: "main"
+    exclude: [".share"]
+    allow: ["/"]
+    sitemap: "https://www.unionensakassa.se/sitemap.xml"
+    max_pages: 200

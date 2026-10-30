@@ -8,7 +8,6 @@ from requests.adapters import HTTPAdapter
 from urllib3.util import Retry
 
 from extraction.models import FetchResult, sha256
-from extraction.website import Website
 
 USER_AGENT = "web-text-classification/0.1 (contact: fire-dragon-35@proton.me)"
 CONNECT_TIMEOUT_SECONDS = 5
@@ -39,14 +38,13 @@ class Http:
         with self._open(url) as response:
             return response.text
 
-    def fetch(self, website: Website, url: str) -> FetchResult:
-        fetch_url = website.fetch_url(url)
+    def fetch(self, url: str, content_types: tuple[str, ...]) -> FetchResult:
         fetched_at = datetime.now(UTC)
-        with self._open(fetch_url) as response:
+        with self._open(url) as response:
             content_type = response.headers.get("content-type", "")
-            body = response.content if content_type.startswith(website.content_types) else b""
+            body = response.content if content_type.startswith(content_types) else b""
         return FetchResult(
-            url=fetch_url,
+            url=url,
             final_url=response.url,
             status=response.status_code,
             content_type=content_type,
