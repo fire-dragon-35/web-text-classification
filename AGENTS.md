@@ -1,0 +1,11 @@
+## Rules
+- No overengineering
+- No duplicated code functionality
+- No band-aid solutions
+- No comments: clean code should be self-explanatory
+- Consistent wording: no synonyms
+- Never store secrets
+- Clean up after yourself: don't leave dead code lying around
+- Don't commit (git)
+- Plan first for larger changes
+- Prefer object oriented programming
