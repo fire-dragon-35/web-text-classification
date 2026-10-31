@@ -1,29 +1,11 @@
 import hashlib
 from datetime import date, datetime
 
-from pydantic import BaseModel, ConfigDict, Field, computed_field
+from pydantic import BaseModel, Field, computed_field
 
 
 def sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
-
-
-class Source(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    id: str
-    urls: list[str]
-    selector: str | None = None
-    exclude: list[str] = []
-    allow: list[str] = []
-    sitemap: str | None = None
-    max_pages: int = Field(5, ge=1)
-
-
-class SourcesFile(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    sources: list[Source]
 
 
 class FetchResult(BaseModel):

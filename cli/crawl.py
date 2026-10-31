@@ -1,7 +1,5 @@
-import logging
 import time
 from collections import Counter
-from collections.abc import Mapping
 from enum import StrEnum
 from pathlib import Path
 from typing import Annotated
@@ -10,15 +8,13 @@ from urllib.parse import urlsplit
 import typer
 import yaml
 from pydantic import ValidationError
-from rich.console import Console
-from rich.logging import RichHandler
-from rich.table import Table
 from rich.text import Text
 
+from cli.ui import configure_logging, console, finish, outcome_line
+from db.sqlite import SqliteStorage
 from extraction.crawl import Outcome, crawl
 from extraction.http import Http
-from extraction.models import Source, SourcesFile
-from storage.sqlite import SqliteStorage
+from extraction.sources import Source, SourcesFile
 
 STYLES = {
     Outcome.STORED: ("✓", "green"),
@@ -28,10 +24,6 @@ STYLES = {
     Outcome.FAILED: ("✗", "red"),
     Outcome.DISALLOWED: ("⊘", "magenta"),
 }
-INTERRUPTED_EXIT_CODE = 130
-MIN_LABEL_WIDTH = 20
-
-console = Console()
 
 
 def _relative(url: str, start: str) -> str:
@@ -39,15 +31,6 @@ def _relative(url: str, start: str) -> str:
     if target.netloc != urlsplit(start).netloc:
         return url
     return target.path + (f"?{target.query}" if target.query else "")
-
-
-def outcome_line(styles: Mapping[StrEnum, tuple[str, str]], outcome: StrEnum, label: str, detail: str) -> Text:
-    symbol, style = styles[outcome]
-    prefix = f"  {symbol} {outcome:<10} "
-    suffix = f"  {detail}" if detail else ""
-    text = Text(label)
-    text.truncate(max(console.width - len(prefix) - len(suffix), MIN_LABEL_WIDTH), overflow="ellipsis")
-    return Text.assemble((prefix, style), text, (suffix, "dim"))
 
 
 def _load(path: Path) -> list[Source]:
@@ -66,44 +49,10 @@ def _selected(sources: list[Source], only: list[str] | None) -> list[Source]:
     return [source for source in sources if source.id in only]
 
 
-def configure_logging(verbose: bool) -> None:
-    logging.basicConfig(
-        level=logging.INFO if verbose else logging.WARNING,
-        format="%(message)s",
-        handlers=[RichHandler(console=console, show_path=False)],
-    )
-    if not verbose:
-        logging.getLogger("trafilatura").setLevel(logging.CRITICAL)
-
-
-def finish(
-    title: str,
-    unit: str,
-    styles: Mapping[StrEnum, tuple[str, str]],
-    counts: Counter[StrEnum],
-    failed: StrEnum,
-    db: str,
-    seconds: float,
-    interrupted: bool,
-) -> None:
-    table = Table(title=title)
-    table.add_column("Outcome")
-    table.add_column(unit, justify="right")
-    for outcome, (symbol, style) in styles.items():
-        if counts[outcome]:
-            table.add_row(Text(f"{symbol} {outcome}", style), str(counts[outcome]))
-    console.print(table)
-    console.print(f"Saved to {db} · {seconds:.0f} s", style="dim")
-    if interrupted:
-        raise typer.Exit(INTERRUPTED_EXIT_CODE)
-    if counts[failed]:
-        raise typer.Exit(1)
-
-
 def main(
-    sources_file: Annotated[Path, typer.Argument(exists=True, dir_okay=False, help="Sources file, e.g. sources.yaml.")],
+    sources_file: Annotated[Path, typer.Argument(exists=True, dir_okay=False, help="Sources file.")] = Path("config/sources.yaml"),
     only: Annotated[list[str] | None, typer.Option(help="Only crawl the source with this id. Repeatable.")] = None,
-    db: Annotated[str, typer.Option(help="SQLite database file.")] = "documents.db",
+    db: Annotated[str, typer.Option(help="SQLite database file.")] = ".assets/documents.db",
     verbose: Annotated[bool, typer.Option(help="Log every request and error details.")] = False,
 ) -> None:
     configure_logging(verbose)
@@ -127,7 +76,3 @@ def main(
     finally:
         storage.close()
     finish("Crawl summary", "Pages", STYLES, counts, Outcome.FAILED, db, time.monotonic() - started, interrupted)
-
-
-if __name__ == "__main__":
-    typer.run(main)

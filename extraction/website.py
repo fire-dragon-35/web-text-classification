@@ -66,6 +66,7 @@ def _absolute(href: str, base: str) -> str | None:
 
 
 class Website:
+    name = "website"
     content_types: tuple[str, ...] = ("text/html", "application/xhtml+xml")
 
     def __init__(self, selector: str | None = None, exclude_selectors: tuple[str, ...] = ()) -> None:

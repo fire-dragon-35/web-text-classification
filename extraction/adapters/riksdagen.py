@@ -27,6 +27,7 @@ def _ends_with_heading(blocks: list[str]) -> bool:
 
 
 class RiksdagenSFS(Website):
+    name = "riksdagen"
     content_types = ("application/json",)
 
     @classmethod

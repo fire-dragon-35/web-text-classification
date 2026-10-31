@@ -5,14 +5,9 @@ from typing import Self
 
 from pydantic import BaseModel, model_validator
 
+from classification.models import Term
+from classification.taxonomies import TAXONOMY_ADAPTERS, GenericTaxonomy
 from extraction.models import sha256
-
-
-class Term(BaseModel):
-    code: str
-    name: str
-    definition: str
-    parent: str
 
 
 class Taxonomy(BaseModel):
@@ -21,8 +16,13 @@ class Taxonomy(BaseModel):
 
     @classmethod
     def load(cls, path: Path) -> Self:
-        data = path.read_bytes()
-        return cls.model_validate(json.loads(data) | {"sha256": sha256(data)})
+        data = json.loads(path.read_bytes())
+        if not isinstance(data, dict):
+            raise ValueError("a taxonomy file must hold a JSON object")
+        adapter = next((adapter for adapter in TAXONOMY_ADAPTERS if adapter.matches(data)), GenericTaxonomy)
+        terms = adapter.terms(data)
+        canonical = {"adapter": adapter.name, "terms": [term.model_dump() for term in sorted(terms, key=lambda term: term.code)]}
+        return cls(terms=terms, sha256=sha256(json.dumps(canonical, ensure_ascii=False, sort_keys=True).encode()))
 
     @model_validator(mode="after")
     def _check_codes(self) -> Self:

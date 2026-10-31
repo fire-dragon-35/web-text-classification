@@ -9,12 +9,13 @@ from urllib.robotparser import RobotFileParser
 import lxml.etree
 import requests
 
-from extraction.adapters import ADAPTERS
+from db import Storage
+from extraction.adapters import ADAPTERS, ADAPTERS_BY_NAME
 from extraction.http import USER_AGENT, Http
-from extraction.models import FetchResult, Source
+from extraction.models import FetchResult
 from extraction.pdf import Pdf
+from extraction.sources import Follow, Source
 from extraction.website import Website
-from storage import Storage
 
 logger = logging.getLogger(__name__)
 
@@ -38,8 +39,17 @@ class Result(NamedTuple):
     detail: str = ""
 
 
-def website_for(url: str, default: Website) -> Website:
-    return next((adapter() for adapter in ADAPTERS if adapter.matches(url)), default)
+PDF_SUFFIX = ".pdf"
+
+
+def website_for(url: str, default: Website, adapter: str | None = None) -> Website:
+    if adapter:
+        return ADAPTERS_BY_NAME[adapter]()
+    return next((candidate() for candidate in ADAPTERS if candidate.matches(url)), default)
+
+
+def _followed(link: str, follow: Follow | None) -> bool:
+    return follow == Follow.ALL or (follow == Follow.PDF and urlsplit(link).path.lower().endswith(PDF_SUFFIX))
 
 
 class _Robots:
@@ -126,13 +136,12 @@ def crawl(http: Http, storage: Storage, source: Source) -> Iterator[Result]:
             return
     else:
         queue = deque(source.urls)
-    follow_links = source.sitemap is None
-    seen = {website_for(url, website).fetch_url(url) for url in queue}
-    scopes = {url: url for url in queue}
+    seen = {website_for(url, website, source.adapter).fetch_url(url) for url in queue}
+    scopes = {source.sitemap: source.sitemap} if source.sitemap else {url: url for url in queue}
     fetched = 0
     while queue and fetched < source.max_pages:
         url = queue.popleft()
-        site = website_for(url, website)
+        site = website_for(url, website, source.adapter)
         if not robots.allows(site.fetch_url(url)):
             yield Result(url, Outcome.DISALLOWED)
             continue
@@ -151,14 +160,16 @@ def crawl(http: Http, storage: Storage, source: Source) -> Iterator[Result]:
             continue
         try:
             result = _store(storage, source.id, handler, url, fetch)
-            links = handler.links(fetch) if follow_links else []
+            links = handler.links(fetch) if source.follow != Follow.NONE else []
         except Exception as error:
             logger.info("Failed to process %s", url, exc_info=True)
             yield Result(url, Outcome.FAILED, f"{type(error).__name__}: {error}")
             continue
         yield result
         for link in links:
-            key = website_for(link, website).fetch_url(link)
+            if not _followed(link, source.follow):
+                continue
+            key = website_for(link, website, source.adapter).fetch_url(link)
             if key not in seen and any(_in_scope(link, scope, source.allow) for scope in scopes.values()):
                 seen.add(key)
                 queue.append(link)
