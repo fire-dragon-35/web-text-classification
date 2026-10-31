@@ -1,18 +1,26 @@
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import StrEnum
 from typing import NamedTuple
 
 import anthropic
 
-from classification.claude import SYSTEM_PROMPT, TERM_LINE, ClassificationError, Claude, schema
-from classification.models import Choice, Classification, ClassifiedSection, Pending, Term, Usage
+from classification.claude import ClassificationError, Claude
+from classification.models import (
+    Choice,
+    Classification,
+    ClassifiedSection,
+    Pending,
+    Term,
+    Usage,
+)
 from classification.taxonomy import Taxonomy
 from db import Storage
 from extraction.models import sha256
 
 SECTION = "Page title: {title}\nSection heading: {heading}\nRef: {ref}\n\n{text}"
 PROMPT_HASH_LENGTH = 8
+PLACEHOLDER_TERM = Term(code="{code}", name="{name}", definition="{definition}", parent="")
 
 
 class Outcome(StrEnum):
@@ -37,8 +45,9 @@ class Classifier:
 
     @property
     def name(self) -> str:
-        prompt = "\n".join((SYSTEM_PROMPT, TERM_LINE, SECTION, json.dumps(schema([]))))
-        return f"{self.claude.model}#{sha256(prompt.encode())[:PROMPT_HASH_LENGTH]}"
+        params = {key: value for key, value in self.claude.params([PLACEHOLDER_TERM], "").items() if key != "model"}
+        request = json.dumps(params, sort_keys=True) + SECTION
+        return f"{self.claude.model}#{sha256(request.encode())[:PROMPT_HASH_LENGTH]}"
 
     def pending(self, item: ClassifiedSection) -> Pending:
         section = item.section
@@ -70,12 +79,6 @@ class Classifier:
             }
         )
 
-    def classify(self, item: ClassifiedSection) -> Pending:
-        pending = self.pending(item)
-        while terms := self.terms(pending):
-            pending = self.advance(pending, self.claude.choose(terms, pending.section_text))
-        return pending
-
     def classification(self, pending: Pending) -> Classification:
         return Classification(
             text_sha256=pending.text_sha256,
@@ -83,21 +86,17 @@ class Classifier:
             taxonomy_sha256=pending.taxonomy_sha256,
             max_depth=pending.max_depth,
             categories=pending.categories,
-            classified_at=datetime.now(timezone.utc),
+            classified_at=datetime.now(UTC),
             usage=pending.usage,
         )
 
 
 def classify_section(storage: Storage, classifier: Classifier, item: ClassifiedSection) -> Result:
-    section = item.section
-    stored = storage.latest_classification(
-        section.text_sha256, classifier.name, classifier.taxonomy.sha256, classifier.max_depth
-    )
-    if stored is not None:
-        return Result(Outcome.REUSED, stored)
+    pending = classifier.pending(item)
     try:
-        done = classifier.classify(item)
+        while terms := classifier.terms(pending):
+            pending = classifier.advance(pending, classifier.claude.choose(terms, pending.section_text))
     except (ClassificationError, anthropic.APIError) as error:
-        return Result(Outcome.FAILED, [], f"{type(error).__name__}: {error}")
-    storage.save_classification(classifier.classification(done))
-    return Result(Outcome.CLASSIFIED, done.categories, usage=done.usage)
+        return Result(Outcome.FAILED, [], f"{type(error).__name__}: {error}", pending.usage)
+    storage.save_classification(classifier.classification(pending))
+    return Result(Outcome.CLASSIFIED, pending.categories, usage=pending.usage)

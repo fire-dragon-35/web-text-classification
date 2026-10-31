@@ -43,3 +43,13 @@ class Section(BaseModel):
     @property
     def text_sha256(self) -> str:
         return sha256(self.text.encode())
+
+
+class PageVersion(BaseModel):
+    id: int
+    source_id: str
+    url: str
+    final_url: str
+    fetched_at: datetime
+    text_sha256: str
+    sections: int

@@ -10,10 +10,11 @@ import lxml.etree
 import requests
 
 from db import Storage
-from extraction.adapters import ADAPTERS, ADAPTERS_BY_NAME
+from extraction.adapters import website_for
 from extraction.http import USER_AGENT, Http
 from extraction.models import FetchResult
 from extraction.pdf import Pdf
+from extraction.scope import in_scope, start_scopes
 from extraction.sources import Follow, Source
 from extraction.website import Website
 
@@ -42,12 +43,6 @@ class Result(NamedTuple):
 PDF_SUFFIX = ".pdf"
 
 
-def website_for(url: str, default: Website, adapter: str | None = None) -> Website:
-    if adapter:
-        return ADAPTERS_BY_NAME[adapter]()
-    return next((candidate() for candidate in ADAPTERS if candidate.matches(url)), default)
-
-
 def _followed(link: str, follow: Follow | None) -> bool:
     return follow == Follow.ALL or (follow == Follow.PDF and urlsplit(link).path.lower().endswith(PDF_SUFFIX))
 
@@ -69,20 +64,6 @@ class _Robots:
                 parser.disallow_all = error.response is not None and error.response.status_code in ROBOTS_DENIED_STATUSES
             self._parsers[origin] = parser
         return self._parsers[origin].can_fetch(USER_AGENT, url)
-
-
-def _scope_prefix(path: str) -> str:
-    directory, _, name = path.rpartition("/")
-    return f"{path}/" if name and "." not in name else f"{directory}/"
-
-
-def _in_scope(url: str, scope: str, allow: list[str]) -> bool:
-    target, origin = urlsplit(url), urlsplit(scope)
-    if target.netloc != origin.netloc:
-        return False
-    if allow:
-        return target.path.startswith(tuple(allow))
-    return f"{target.path}/".startswith(_scope_prefix(origin.path))
 
 
 def _sitemap_urls(http: Http, robots: _Robots, url: str, seen: set[str]) -> list[str]:
@@ -113,10 +94,10 @@ def _store(storage: Storage, source_id: str, website: Website, url: str, fetch: 
     if latest and latest[0] == fetch.raw_sha256:
         return Result(url, Outcome.UNCHANGED)
     page = website.extract(fetch)
-    sections = website.sections(page)
-    storage.save(source_id, fetch, page, sections)
     if latest and latest[1] == page.text_sha256:
         return Result(url, Outcome.UNCHANGED)
+    sections = website.sections(page)
+    storage.save(source_id, fetch, page, sections)
     if page.warnings:
         return Result(url, Outcome.FLAGGED, "; ".join(page.warnings))
     return Result(url, Outcome.STORED, f"{len(sections)} section{'' if len(sections) == 1 else 's'}")
@@ -137,7 +118,7 @@ def crawl(http: Http, storage: Storage, source: Source) -> Iterator[Result]:
     else:
         queue = deque(source.urls)
     seen = {website_for(url, website, source.adapter).fetch_url(url) for url in queue}
-    scopes = {source.sitemap: source.sitemap} if source.sitemap else {url: url for url in queue}
+    scopes = {scope: scope for scope in start_scopes(source)}
     fetched = 0
     while queue and fetched < source.max_pages:
         url = queue.popleft()
@@ -170,6 +151,6 @@ def crawl(http: Http, storage: Storage, source: Source) -> Iterator[Result]:
             if not _followed(link, source.follow):
                 continue
             key = website_for(link, website, source.adapter).fetch_url(link)
-            if key not in seen and any(_in_scope(link, scope, source.allow) for scope in scopes.values()):
+            if key not in seen and any(in_scope(link, scope, source.allow) for scope in scopes.values()):
                 seen.add(key)
                 queue.append(link)

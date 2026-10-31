@@ -18,7 +18,7 @@ class Taxonomy(BaseModel):
     def load(cls, path: Path) -> Self:
         data = json.loads(path.read_bytes())
         if not isinstance(data, dict):
-            raise ValueError("a taxonomy file must hold a JSON object")
+            raise TypeError("a taxonomy file must hold a JSON object")
         adapter = next((adapter for adapter in TAXONOMY_ADAPTERS if adapter.matches(data)), GenericTaxonomy)
         terms = adapter.terms(data)
         canonical = {"adapter": adapter.name, "terms": [term.model_dump() for term in sorted(terms, key=lambda term: term.code)]}

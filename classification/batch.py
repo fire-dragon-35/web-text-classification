@@ -1,8 +1,8 @@
 import time
 from collections.abc import Callable
 
-from classification.claude import ClassificationError
 from classification.classifier import Classifier, Outcome, Result
+from classification.claude import ClassificationError
 from classification.models import ClassifiedSection, Pending
 from db import Storage
 
@@ -77,7 +77,7 @@ class BatchRun:
                 )
             except ClassificationError as error:
                 removed.append(state)
-                results[state.text_sha256] = Result(Outcome.FAILED, [], f"{type(error).__name__}: {error}")
+                results[state.text_sha256] = Result(Outcome.FAILED, [], f"{type(error).__name__}: {error}", state.usage)
                 continue
             if self._classifier.terms(state):
                 advanced.append(state)
@@ -87,7 +87,7 @@ class BatchRun:
                 results[state.text_sha256] = Result(Outcome.CLASSIFIED, state.categories, usage=state.usage)
         for state in in_batch.values():
             removed.append(state)
-            results[state.text_sha256] = Result(Outcome.FAILED, [], "ClassificationError: no batch result")
+            results[state.text_sha256] = Result(Outcome.FAILED, [], "ClassificationError: no batch result", state.usage)
         self._storage.update_pending(
             save=advanced,
             delete=removed,

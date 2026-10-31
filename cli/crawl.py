@@ -1,20 +1,29 @@
 import time
 from collections import Counter
 from enum import StrEnum
-from pathlib import Path
 from typing import Annotated
 from urllib.parse import urlsplit
 
 import typer
-import yaml
-from pydantic import ValidationError
+from rich.table import Table
 from rich.text import Text
 
-from cli.ui import configure_logging, console, finish, outcome_line
+from cli.ui import (
+    DB,
+    SOURCES_FILE,
+    DbOption,
+    SourcesFileArgument,
+    configure_logging,
+    console,
+    finish,
+    load_sources,
+    outcome_line,
+)
+from db import Storage
 from db.sqlite import SqliteStorage
 from extraction.crawl import Outcome, crawl
 from extraction.http import Http
-from extraction.sources import Source, SourcesFile
+from extraction.sources import Source
 
 STYLES = {
     Outcome.STORED: ("✓", "green"),
@@ -24,6 +33,7 @@ STYLES = {
     Outcome.FAILED: ("✗", "red"),
     Outcome.DISALLOWED: ("⊘", "magenta"),
 }
+LONGEST_SECTIONS = 10
 
 
 def _relative(url: str, start: str) -> str:
@@ -31,13 +41,6 @@ def _relative(url: str, start: str) -> str:
     if target.netloc != urlsplit(start).netloc:
         return url
     return target.path + (f"?{target.query}" if target.query else "")
-
-
-def _load(path: Path) -> list[Source]:
-    try:
-        return SourcesFile.model_validate(yaml.safe_load(path.read_text())).sources
-    except (yaml.YAMLError, ValidationError) as error:
-        raise typer.BadParameter(str(error), param_hint="SOURCES_FILE") from None
 
 
 def _selected(sources: list[Source], only: list[str] | None) -> list[Source]:
@@ -49,19 +52,30 @@ def _selected(sources: list[Source], only: list[str] | None) -> list[Source]:
     return [source for source in sources if source.id in only]
 
 
+def _longest(storage: Storage, sources: list[Source]) -> Table:
+    table = Table(title=f"{LONGEST_SECTIONS} longest sections")
+    table.add_column("Source")
+    table.add_column("Heading")
+    table.add_column("Characters", justify="right")
+    for source_id, heading, characters in storage.longest_sections([source.id for source in sources], LONGEST_SECTIONS):
+        table.add_row(source_id, heading, f"{characters:,}")
+    return table
+
+
 def main(
-    sources_file: Annotated[Path, typer.Argument(exists=True, dir_okay=False, help="Sources file.")] = Path("config/sources.yaml"),
+    sources_file: SourcesFileArgument = SOURCES_FILE,
     only: Annotated[list[str] | None, typer.Option(help="Only crawl the source with this id. Repeatable.")] = None,
-    db: Annotated[str, typer.Option(help="SQLite database file.")] = ".assets/documents.db",
+    db: DbOption = DB,
     verbose: Annotated[bool, typer.Option(help="Log every request and error details.")] = False,
 ) -> None:
     configure_logging(verbose)
-    sources = _selected(_load(sources_file), only)
+    sources = _selected(load_sources(sources_file), only)
     http = Http()
     storage = SqliteStorage(db)
     counts: Counter[StrEnum] = Counter()
     started = time.monotonic()
     interrupted = False
+    longest = None
     try:
         with console.status("Crawling…") as status:
             for source in sources:
@@ -70,9 +84,10 @@ def main(
                     console.print(outcome_line(STYLES, result.outcome, _relative(result.url, source.urls[0]), result.detail))
                     counts[result.outcome] += 1
                     status.update(f"Crawling {source.id} · {sum(counts.values())} pages")
+        longest = _longest(storage, sources)
     except KeyboardInterrupt:
         interrupted = True
         console.print("Interrupted", style="bold yellow")
     finally:
         storage.close()
-    finish("Crawl summary", "Pages", STYLES, counts, Outcome.FAILED, db, time.monotonic() - started, interrupted)
+    finish("Crawl summary", "Pages", STYLES, counts, Outcome.FAILED, db, time.monotonic() - started, interrupted, longest)

@@ -3,7 +3,8 @@ import sqlite3
 from collections.abc import Sequence
 
 from classification.models import Classification, ClassifiedSection, Pending, Usage
-from extraction.models import FetchResult, Page, Section
+from db import PruneResult
+from extraction.models import FetchResult, Page, PageVersion, Section
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS page (
@@ -107,6 +108,30 @@ VALUES (:page_id, :ordinal, :heading, :level, :ref, :text, :text_sha256)
 
 LATEST = "SELECT raw_sha256, text_sha256 FROM page WHERE url = ? ORDER BY fetched_at DESC LIMIT 1"
 
+PAGE_VERSIONS = """
+SELECT page.id, page.source_id, page.url, page.final_url, page.fetched_at, page.text_sha256,
+       count(section.id) AS sections
+FROM page
+LEFT JOIN section ON section.page_id = page.id
+GROUP BY page.id
+ORDER BY page.url, page.fetched_at
+"""
+
+LONGEST_SECTIONS = """
+SELECT source_id, heading, length(text) FROM current_section
+WHERE source_id IN (SELECT value FROM json_each(?))
+ORDER BY length(text) DESC
+LIMIT ?
+"""
+
+DELETE_SECTIONS = "DELETE FROM section WHERE page_id IN (SELECT value FROM json_each(?))"
+
+DELETE_PAGES = "DELETE FROM page WHERE id IN (SELECT value FROM json_each(?))"
+
+DELETE_ORPHAN_CLASSIFICATIONS = "DELETE FROM classification WHERE text_sha256 NOT IN (SELECT text_sha256 FROM section)"
+
+DELETE_ORPHAN_PENDING = "DELETE FROM pending_classification WHERE text_sha256 NOT IN (SELECT text_sha256 FROM section)"
+
 CLASSIFIED_SECTIONS = """
 SELECT current_section.source_id, current_section.page_title, current_section.ordinal, current_section.heading,
        current_section.level, current_section.ref, current_section.text, classification.categories
@@ -153,12 +178,6 @@ WHERE text_sha256 = :text_sha256 AND classifier = :classifier AND taxonomy_sha25
 
 PENDING_JSON_COLUMNS = ("chosen", "categories", "usage")
 
-LATEST_CLASSIFICATION = """
-SELECT categories FROM classification
-WHERE text_sha256 = ? AND classifier = ? AND taxonomy_sha256 = ? AND max_depth = ?
-"""
-
-
 def _classification_row(classification: Classification) -> dict[str, object]:
     row = classification.model_dump(mode="json")
     row["categories"] = json.dumps(row["categories"], ensure_ascii=False)
@@ -201,6 +220,33 @@ class SqliteStorage:
                 [section.model_dump() | {"page_id": page_id} for section in sections],
             )
 
+    def page_versions(self) -> list[PageVersion]:
+        cursor = self._connection.execute(PAGE_VERSIONS)
+        columns = [column[0] for column in cursor.description]
+        return [PageVersion.model_validate(dict(zip(columns, row, strict=True))) for row in cursor]
+
+    def longest_sections(self, source_ids: list[str], limit: int) -> list[tuple[str, str, int]]:
+        return self._connection.execute(LONGEST_SECTIONS, (json.dumps(source_ids), limit)).fetchall()
+
+    def prune(self, page_ids: Sequence[int], apply: bool) -> PruneResult:
+        ids = json.dumps(list(page_ids))
+        try:
+            self._connection.execute(DELETE_SECTIONS, (ids,))
+            self._connection.execute(DELETE_PAGES, (ids,))
+            result = PruneResult(
+                classifications=self._connection.execute(DELETE_ORPHAN_CLASSIFICATIONS).rowcount,
+                pending=self._connection.execute(DELETE_ORPHAN_PENDING).rowcount,
+            )
+        except BaseException:
+            self._connection.rollback()
+            raise
+        if not apply:
+            self._connection.rollback()
+            return result
+        self._connection.commit()
+        self._connection.execute("VACUUM")
+        return result
+
     def classified_sections(
         self, classifier: str, taxonomy_sha256: str, max_depth: int, source_ids: list[str]
     ) -> list[ClassifiedSection]:
@@ -224,14 +270,6 @@ class SqliteStorage:
             for source_id, page_title, ordinal, heading, level, ref, text, categories in rows
         ]
 
-    def latest_classification(
-        self, text_sha256: str, classifier: str, taxonomy_sha256: str, max_depth: int
-    ) -> list[str] | None:
-        row = self._connection.execute(
-            LATEST_CLASSIFICATION, (text_sha256, classifier, taxonomy_sha256, max_depth)
-        ).fetchone()
-        return json.loads(row[0]) if row else None
-
     def save_classification(self, classification: Classification) -> None:
         with self._connection:
             self._connection.execute(INSERT_CLASSIFICATION, _classification_row(classification))
@@ -239,7 +277,7 @@ class SqliteStorage:
     def pending(self, classifier: str, taxonomy_sha256: str, max_depth: int) -> list[Pending]:
         cursor = self._connection.execute(PENDING, (classifier, taxonomy_sha256, max_depth))
         columns = [column[0] for column in cursor.description]
-        rows = (dict(zip(columns, row)) for row in cursor)
+        rows = (dict(zip(columns, row, strict=True)) for row in cursor)
         return [
             Pending.model_validate(row | {column: json.loads(row[column]) for column in PENDING_JSON_COLUMNS})
             for row in rows
