@@ -2,18 +2,15 @@ import io
 
 import pypdf
 
+from extraction.extractor import MIN_CHARS, Extractor
 from extraction.models import FetchResult, Page, Section
-from extraction.website import MIN_CHARS, Website
 
 PAGE_BREAK = "\f"
 EXTRACTOR = f"pypdf {pypdf.__version__}"
 
 
-class Pdf(Website):
+class Pdf(Extractor):
     content_types = ("application/pdf",)
-
-    def links(self, fetch: FetchResult) -> list[str]:
-        return []
 
     def extract(self, fetch: FetchResult) -> Page:
         reader = pypdf.PdfReader(io.BytesIO(fetch.body))

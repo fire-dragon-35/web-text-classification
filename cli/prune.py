@@ -13,44 +13,46 @@ from cli.ui import (
     console,
     load_sources,
 )
-from db.sqlite import SqliteStorage
+from db.sqlite.database import SqliteDatabase
 from extraction.models import PageVersion
-from extraction.scope import includes, start_scopes
+from extraction.registry import Extractors
+from extraction.scope import Scope
 from extraction.sources import Source
 
 
-class Reason(StrEnum):
+class PruneReason(StrEnum):
     REMOVED_SOURCE = "removed source"
     OUT_OF_SCOPE = "out of scope"
     DUPLICATE = "duplicate version"
 
 
-def _scopes(source: Source, versions: list[PageVersion]) -> list[str]:
-    starts = start_scopes(source)
-    redirects = [version.final_url for version in versions if version.source_id == source.id and version.url in starts]
-    return starts + redirects
+def _scopes(sources: list[Source], versions: list[PageVersion]) -> dict[str, Scope]:
+    scopes = {source.id: Scope(source, Extractors(source)) for source in sources}
+    for version in versions:
+        if version.source_id in scopes:
+            scopes[version.source_id].redirected(version.url, version.final_url)
+    return scopes
 
 
-def _reasons(versions: list[PageVersion], sources: list[Source]) -> dict[int, Reason]:
-    by_id = {source.id: source for source in sources}
-    scopes = {source.id: _scopes(source, versions) for source in sources}
-    reasons: dict[int, Reason] = {}
+def _reasons(versions: list[PageVersion], sources: list[Source]) -> dict[int, PruneReason]:
+    scopes = _scopes(sources, versions)
+    reasons: dict[int, PruneReason] = {}
     previous: dict[str, str] = {}
     for version in versions:
-        source = by_id.get(version.source_id)
-        if source is None:
-            reasons[version.id] = Reason.REMOVED_SOURCE
-        elif not includes(source, version.url, scopes[source.id]):
-            reasons[version.id] = Reason.OUT_OF_SCOPE
+        scope = scopes.get(version.source_id)
+        if scope is None:
+            reasons[version.id] = PruneReason.REMOVED_SOURCE
+        elif not scope.includes(version.url):
+            reasons[version.id] = PruneReason.OUT_OF_SCOPE
         elif previous.get(version.url) == version.text_sha256:
-            reasons[version.id] = Reason.DUPLICATE
+            reasons[version.id] = PruneReason.DUPLICATE
         previous[version.url] = version.text_sha256
     return reasons
 
 
-def _table(versions: list[PageVersion], reasons: dict[int, Reason]) -> Table:
-    pages: Counter[tuple[str, Reason]] = Counter()
-    sections: Counter[tuple[str, Reason]] = Counter()
+def _table(versions: list[PageVersion], reasons: dict[int, PruneReason]) -> Table:
+    pages: Counter[tuple[str, PruneReason]] = Counter()
+    sections: Counter[tuple[str, PruneReason]] = Counter()
     for version in versions:
         if version.id in reasons:
             key = (version.source_id, reasons[version.id])
@@ -72,19 +74,13 @@ def main(
     apply: Annotated[bool, typer.Option(help="Delete the pages instead of only listing them.")] = False,
 ) -> None:
     sources = load_sources(sources_file)
-    storage = SqliteStorage(db)
-    try:
-        versions = storage.page_versions()
+    with SqliteDatabase(db) as database:
+        versions = database.prune.page_versions()
         reasons = _reasons(versions, sources)
-        result = storage.prune(list(reasons), apply)
-    finally:
-        storage.close()
-    if not reasons and not result.classifications and not result.pending:
+        embeddings = database.prune.prune(list(reasons), apply)
+    if not reasons and not embeddings:
         console.print("Nothing to prune")
         return
     console.print(_table(versions, reasons))
-    duplicates = sum(reason == Reason.DUPLICATE for reason in reasons.values())
-    console.print(
-        f"Duplicate versions {duplicates} · classifications {result.classifications} · pending {result.pending}"
-    )
+    console.print(f"Embeddings {embeddings}")
     console.print(f"Deleted from {db}" if apply else "Dry run, nothing changed. Run with --apply to delete.", style="dim")

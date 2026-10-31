@@ -9,23 +9,21 @@ from urllib.robotparser import RobotFileParser
 import lxml.etree
 import requests
 
-from db import Storage
-from extraction.adapters import website_for
+from db import PageStore
+from extraction.extractor import Extractor
 from extraction.http import USER_AGENT, Http
 from extraction.models import FetchResult
-from extraction.pdf import Pdf
-from extraction.scope import in_scope, start_scopes
+from extraction.registry import Extractors
+from extraction.scope import Scope
 from extraction.sources import Follow, Source
-from extraction.website import Website
 
 logger = logging.getLogger(__name__)
 
 ROBOTS_DENIED_STATUSES = (401, 403)
+PDF_SUFFIX = ".pdf"
 
-PDF = Pdf()
 
-
-class Outcome(StrEnum):
+class CrawlOutcome(StrEnum):
     STORED = "stored"
     UNCHANGED = "unchanged"
     FLAGGED = "flagged"
@@ -34,20 +32,13 @@ class Outcome(StrEnum):
     DISALLOWED = "disallowed"
 
 
-class Result(NamedTuple):
+class CrawlResult(NamedTuple):
     url: str
-    outcome: Outcome
+    outcome: CrawlOutcome
     detail: str = ""
 
 
-PDF_SUFFIX = ".pdf"
-
-
-def _followed(link: str, follow: Follow | None) -> bool:
-    return follow == Follow.ALL or (follow == Follow.PDF and urlsplit(link).path.lower().endswith(PDF_SUFFIX))
-
-
-class _Robots:
+class Robots:
     def __init__(self, http: Http) -> None:
         self._http = http
         self._parsers: dict[str, RobotFileParser] = {}
@@ -66,91 +57,100 @@ class _Robots:
         return self._parsers[origin].can_fetch(USER_AGENT, url)
 
 
-def _sitemap_urls(http: Http, robots: _Robots, url: str, seen: set[str]) -> list[str]:
-    if url in seen or not robots.allows(url):
-        return []
-    seen.add(url)
-    root = lxml.etree.fromstring(http.text(url).encode())
-    locs = [loc.text.strip() for loc in root.iter("{*}loc") if loc.text]
-    if lxml.etree.QName(root).localname == "sitemapindex":
-        return [page for loc in locs for page in _sitemap_urls(http, robots, loc, seen)]
-    return locs
-
-
-def _sitemap_pages(http: Http, robots: _Robots, sitemap: str, allow: list[str], max_pages: int) -> list[str]:
-    pages = set(_sitemap_urls(http, robots, sitemap, set()))
-    allowed = [url for url in pages if not allow or urlsplit(url).path.startswith(tuple(allow))]
-    return sorted(allowed)[:max_pages]
-
-
 def _failure(error: requests.RequestException) -> str:
     if isinstance(error, requests.HTTPError) and error.response is not None:
         return f"HTTP {error.response.status_code}"
     return type(error).__name__
 
 
-def _store(storage: Storage, source_id: str, website: Website, url: str, fetch: FetchResult) -> Result:
-    latest = storage.latest(fetch.url)
-    if latest and latest[0] == fetch.raw_sha256:
-        return Result(url, Outcome.UNCHANGED)
-    page = website.extract(fetch)
-    if latest and latest[1] == page.text_sha256:
-        return Result(url, Outcome.UNCHANGED)
-    sections = website.sections(page)
-    storage.save(source_id, fetch, page, sections)
-    if page.warnings:
-        return Result(url, Outcome.FLAGGED, "; ".join(page.warnings))
-    return Result(url, Outcome.STORED, f"{len(sections)} section{'' if len(sections) == 1 else 's'}")
+class Crawler:
+    def __init__(self, http: Http, robots: Robots, pages: PageStore, source: Source) -> None:
+        self._http = http
+        self._robots = robots
+        self._pages = pages
+        self._source = source
+        self._extractors = Extractors(source)
+        self._scope = Scope(source, self._extractors)
+        self._queue: deque[str] = deque()
+        self._seen: set[str] = set()
 
-
-def crawl(http: Http, storage: Storage, source: Source) -> Iterator[Result]:
-    website = Website(source.selector, tuple(source.exclude))
-    robots = _Robots(http)
-    if source.sitemap:
+    def crawl(self) -> Iterator[CrawlResult]:
         try:
-            queue = deque(_sitemap_pages(http, robots, source.sitemap, source.allow, source.max_pages))
+            self._queue.extend(self._sitemap_pages() if self._source.sitemap else self._source.urls)
         except requests.RequestException as error:
-            yield Result(source.sitemap, Outcome.FAILED, _failure(error))
+            yield CrawlResult(self._source.sitemap or "", CrawlOutcome.FAILED, _failure(error))
             return
         except lxml.etree.XMLSyntaxError as error:
-            yield Result(source.sitemap, Outcome.FAILED, f"{type(error).__name__}: {error}")
+            yield CrawlResult(self._source.sitemap or "", CrawlOutcome.FAILED, f"{type(error).__name__}: {error}")
             return
-    else:
-        queue = deque(source.urls)
-    seen = {website_for(url, website, source.adapter).fetch_url(url) for url in queue}
-    scopes = {scope: scope for scope in start_scopes(source)}
-    fetched = 0
-    while queue and fetched < source.max_pages:
-        url = queue.popleft()
-        site = website_for(url, website, source.adapter)
-        if not robots.allows(site.fetch_url(url)):
-            yield Result(url, Outcome.DISALLOWED)
-            continue
-        fetched += 1
+        self._seen.update(self._extractors.fetch_url(url) for url in self._queue)
+        fetched = 0
+        while self._queue and fetched < self._source.max_pages:
+            url = self._queue.popleft()
+            fetch_url = self._extractors.fetch_url(url)
+            if not self._robots.allows(fetch_url):
+                yield CrawlResult(url, CrawlOutcome.DISALLOWED)
+                continue
+            fetched += 1
+            yield self._visit(url, fetch_url)
+
+    def _sitemap_pages(self) -> list[str]:
+        pages = set(self._sitemap_urls(self._source.sitemap or "", set()))
+        allow = tuple(self._source.allow)
+        allowed = [url for url in pages if not allow or urlsplit(url).path.startswith(allow)]
+        return sorted(allowed)[: self._source.max_pages]
+
+    def _sitemap_urls(self, url: str, seen: set[str]) -> list[str]:
+        if url in seen or not self._robots.allows(url):
+            return []
+        seen.add(url)
+        root = lxml.etree.fromstring(self._http.text(url).encode())
+        locs = [loc.text.strip() for loc in root.iter("{*}loc") if loc.text]
+        if lxml.etree.QName(root).localname == "sitemapindex":
+            return [page for loc in locs for page in self._sitemap_urls(loc, seen)]
+        return locs
+
+    def _visit(self, url: str, fetch_url: str) -> CrawlResult:
         try:
-            fetch = http.fetch(site.fetch_url(url), site.content_types + Pdf.content_types)
+            fetch = self._http.fetch(fetch_url, self._extractors.content_types(url))
         except requests.RequestException as error:
-            yield Result(url, Outcome.FAILED, _failure(error))
-            continue
-        seen.add(fetch.final_url)
-        if url in scopes:
-            scopes[url] = fetch.final_url
-        handler = PDF if fetch.content_type.startswith(Pdf.content_types) else site
-        if not fetch.content_type.startswith(handler.content_types):
-            yield Result(url, Outcome.SKIPPED, fetch.content_type)
-            continue
+            return CrawlResult(url, CrawlOutcome.FAILED, _failure(error))
+        self._seen.add(fetch.final_url)
+        self._scope.redirected(url, fetch.final_url)
+        extractor = self._extractors.select(url, fetch.content_type)
+        if extractor is None:
+            return CrawlResult(url, CrawlOutcome.SKIPPED, fetch.content_type)
         try:
-            result = _store(storage, source.id, handler, url, fetch)
-            links = handler.links(fetch) if source.follow != Follow.NONE else []
+            result = self._store(extractor, url, fetch)
+            if self._source.follow != Follow.NONE:
+                self._enqueue(extractor.links(fetch))
         except Exception as error:
             logger.info("Failed to process %s", url, exc_info=True)
-            yield Result(url, Outcome.FAILED, f"{type(error).__name__}: {error}")
-            continue
-        yield result
+            return CrawlResult(url, CrawlOutcome.FAILED, f"{type(error).__name__}: {error}")
+        return result
+
+    def _store(self, extractor: Extractor, url: str, fetch: FetchResult) -> CrawlResult:
+        latest = self._pages.latest(fetch.url)
+        if latest and latest[0] == fetch.raw_sha256:
+            return CrawlResult(url, CrawlOutcome.UNCHANGED)
+        page = extractor.extract(fetch)
+        if latest and latest[1] == page.text_sha256:
+            return CrawlResult(url, CrawlOutcome.UNCHANGED)
+        sections = extractor.sections(page)
+        self._pages.save(self._source.id, fetch, page, sections)
+        if page.warnings:
+            return CrawlResult(url, CrawlOutcome.FLAGGED, "; ".join(page.warnings))
+        return CrawlResult(url, CrawlOutcome.STORED, f"{len(sections)} section{'' if len(sections) == 1 else 's'}")
+
+    def _enqueue(self, links: list[str]) -> None:
         for link in links:
-            if not _followed(link, source.follow):
+            if not self._followed(link):
                 continue
-            key = website_for(link, website, source.adapter).fetch_url(link)
-            if key not in seen and any(in_scope(link, scope, source.allow) for scope in scopes.values()):
-                seen.add(key)
-                queue.append(link)
+            key = self._extractors.fetch_url(link)
+            if key not in self._seen and self._scope.includes(link):
+                self._seen.add(key)
+                self._queue.append(link)
+
+    def _followed(self, link: str) -> bool:
+        follow = self._source.follow
+        return follow == Follow.ALL or (follow == Follow.PDF and urlsplit(link).path.lower().endswith(PDF_SUFFIX))

@@ -19,19 +19,19 @@ from cli.ui import (
     load_sources,
     outcome_line,
 )
-from db import Storage
-from db.sqlite import SqliteStorage
-from extraction.crawl import Outcome, crawl
+from db import PageStore
+from db.sqlite.database import SqliteDatabase
+from extraction.crawl import Crawler, CrawlOutcome, Robots
 from extraction.http import Http
 from extraction.sources import Source
 
 STYLES = {
-    Outcome.STORED: ("✓", "green"),
-    Outcome.UNCHANGED: ("=", "dim"),
-    Outcome.FLAGGED: ("⚠", "yellow"),
-    Outcome.SKIPPED: ("–", "cyan"),
-    Outcome.FAILED: ("✗", "red"),
-    Outcome.DISALLOWED: ("⊘", "magenta"),
+    CrawlOutcome.STORED: ("✓", "green"),
+    CrawlOutcome.UNCHANGED: ("=", "dim"),
+    CrawlOutcome.FLAGGED: ("⚠", "yellow"),
+    CrawlOutcome.SKIPPED: ("–", "cyan"),
+    CrawlOutcome.FAILED: ("✗", "red"),
+    CrawlOutcome.DISALLOWED: ("⊘", "magenta"),
 }
 LONGEST_SECTIONS = 10
 
@@ -52,12 +52,12 @@ def _selected(sources: list[Source], only: list[str] | None) -> list[Source]:
     return [source for source in sources if source.id in only]
 
 
-def _longest(storage: Storage, sources: list[Source]) -> Table:
+def _longest(pages: PageStore, sources: list[Source]) -> Table:
     table = Table(title=f"{LONGEST_SECTIONS} longest sections")
     table.add_column("Source")
     table.add_column("Heading")
     table.add_column("Characters", justify="right")
-    for source_id, heading, characters in storage.longest_sections([source.id for source in sources], LONGEST_SECTIONS):
+    for source_id, heading, characters in pages.longest_sections([source.id for source in sources], LONGEST_SECTIONS):
         table.add_row(source_id, heading, f"{characters:,}")
     return table
 
@@ -71,23 +71,23 @@ def main(
     configure_logging(verbose)
     sources = _selected(load_sources(sources_file), only)
     http = Http()
-    storage = SqliteStorage(db)
+    robots = Robots(http)
     counts: Counter[StrEnum] = Counter()
     started = time.monotonic()
     interrupted = False
     longest = None
-    try:
-        with console.status("Crawling…") as status:
-            for source in sources:
-                console.print(Text.assemble(("Crawling ", "bold"), source.id))
-                for result in crawl(http, storage, source):
-                    console.print(outcome_line(STYLES, result.outcome, _relative(result.url, source.urls[0]), result.detail))
-                    counts[result.outcome] += 1
-                    status.update(f"Crawling {source.id} · {sum(counts.values())} pages")
-        longest = _longest(storage, sources)
-    except KeyboardInterrupt:
-        interrupted = True
-        console.print("Interrupted", style="bold yellow")
-    finally:
-        storage.close()
-    finish("Crawl summary", "Pages", STYLES, counts, Outcome.FAILED, db, time.monotonic() - started, interrupted, longest)
+    with SqliteDatabase(db) as database:
+        try:
+            with console.status("Crawling…") as status:
+                for source in sources:
+                    console.print(Text.assemble(("Crawling ", "bold"), source.id))
+                    for result in Crawler(http, robots, database.pages, source).crawl():
+                        label = _relative(result.url, source.urls[0])
+                        console.print(outcome_line(STYLES, result.outcome, label, result.detail))
+                        counts[result.outcome] += 1
+                        status.update(f"Crawling {source.id} · {sum(counts.values())} pages")
+            longest = _longest(database.pages, sources)
+        except KeyboardInterrupt:
+            interrupted = True
+            console.print("Interrupted", style="bold yellow")
+    finish("Crawl summary", "Pages", STYLES, counts, CrawlOutcome.FAILED, db, time.monotonic() - started, interrupted, longest)

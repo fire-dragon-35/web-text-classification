@@ -1,8 +1,8 @@
 import json
 import re
 
+from extraction.extractor import Adapter
 from extraction.models import FetchResult, Page, Section
-from extraction.website import Website
 
 DOKUMENT_URL = "https://data.riksdagen.se/dokument/sfs-{year}-{number}.json"
 EXTRACTOR = "riksdagen-sfs"
@@ -26,7 +26,7 @@ def _ends_with_heading(blocks: list[str]) -> bool:
     return len(blocks) > 1 and not blocks[-1].endswith(SENTENCE_ENDINGS)
 
 
-class RiksdagenSFS(Website):
+class RiksdagenSFS(Adapter):
     name = "riksdagen"
     content_types = ("application/json",)
 
@@ -39,9 +39,6 @@ class RiksdagenSFS(Website):
         if not number:
             raise ValueError(f"Not a Riksdagen SFS URL: {url!r}")
         return DOKUMENT_URL.format(year=number[1], number=number[2])
-
-    def links(self, fetch: FetchResult) -> list[str]:
-        return []
 
     def extract(self, fetch: FetchResult) -> Page:
         dokument = json.loads(fetch.body)["dokumentstatus"]["dokument"]

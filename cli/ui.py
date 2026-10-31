@@ -57,7 +57,7 @@ def finish(
     unit: str,
     styles: Mapping[StrEnum, tuple[str, str]],
     counts: Counter[StrEnum],
-    failed: StrEnum,
+    failed: StrEnum | None,
     db: str,
     seconds: float,
     interrupted: bool,
@@ -75,5 +75,5 @@ def finish(
         console.print(footer)
     if interrupted:
         raise typer.Exit(INTERRUPTED_EXIT_CODE)
-    if counts[failed]:
+    if failed and counts[failed]:
         raise typer.Exit(1)

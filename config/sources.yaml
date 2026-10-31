@@ -1,8 +1,8 @@
-# sources.yaml, 2026-10-31, budget: max 20 dollar för klassning
-# urval: de officiella källor som täcker flest list-grenar per krona. sökvägar kontrollerade 2026-10-31.
-# uppskattning: ~6 500 unika texter à ~0,23 cent (batch, max-depth 3) ≈ 15 dollar. osäkerhet ±30 %.
-# lagar: bara korta, centrala lagar. stora balkar (sfb ~2 000 texter, inkomstskattelagen ~1 700) är utelämnade;
-# deras innehåll täcks i klarspråk av fk, skatteverket och pensionsmyndigheten.
+# sources.yaml, 2026-10-31
+# princip: officiella källor skrivna för privatpersoner. sökvägar och språkfilter kontrollerade 2026-10-31.
+# crawlern respekterar robots.txt själv. start-url:er begränsar till svenska delar för privatpersoner.
+# lagar: riksdagens öppna api, en källa per lag. 23 titlar kontrollerade 2026-10-31, vapenlagen bytt till 2026:408;
+# övriga sfs-nummer kontrolleras mot titlarna efter crawlen.
 
 sources:
   - id: las  # lag om anställningsskydd, sfs 1982:80
@@ -17,26 +17,71 @@ sources:
   - id: arbetstidslagen  # arbetstidslag, sfs 1982:673
     urls: ["https://data.riksdagen.se/dokument/sfs-1982-673.json"]
     max_pages: 1
+  - id: arbetsmiljolagen  # arbetsmiljölag, sfs 1977:1160
+    urls: ["https://data.riksdagen.se/dokument/sfs-1977-1160.json"]
+    max_pages: 1
   - id: sjuklonelagen  # lag om sjuklön, sfs 1991:1047
     urls: ["https://data.riksdagen.se/dokument/sfs-1991-1047.json"]
     max_pages: 1
   - id: foraldraledighet  # föräldraledighetslag, sfs 1995:584
     urls: ["https://data.riksdagen.se/dokument/sfs-1995-584.json"]
     max_pages: 1
-  - id: diskriminering  # diskrimineringslag, sfs 2008:567
-    urls: ["https://data.riksdagen.se/dokument/sfs-2008-567.json"]
+  - id: studieledighet  # lag om arbetstagares rätt till ledighet för utbildning, sfs 1974:981
+    urls: ["https://data.riksdagen.se/dokument/sfs-1974-981.json"]
+    max_pages: 1
+  - id: ledighet_naring  # lag om rätt till ledighet för att bedriva näringsverksamhet, sfs 1997:1293
+    urls: ["https://data.riksdagen.se/dokument/sfs-1997-1293.json"]
+    max_pages: 1
+  - id: fortroendeman  # lag om facklig förtroendemans ställning på arbetsplatsen, sfs 1974:358
+    urls: ["https://data.riksdagen.se/dokument/sfs-1974-358.json"]
+    max_pages: 1
+  - id: anst_framjande  # lag om vissa anställningsfrämjande åtgärder, sfs 1974:13
+    urls: ["https://data.riksdagen.se/dokument/sfs-1974-13.json"]
+    max_pages: 1
+  - id: uthyrning  # lag om uthyrning av arbetstagare, sfs 2012:854
+    urls: ["https://data.riksdagen.se/dokument/sfs-2012-854.json"]
     max_pages: 1
   - id: visselblasare  # lag om skydd för personer som rapporterar om missförhållanden, sfs 2021:890
     urls: ["https://data.riksdagen.se/dokument/sfs-2021-890.json"]
     max_pages: 1
+  - id: diskriminering  # diskrimineringslag, sfs 2008:567
+    urls: ["https://data.riksdagen.se/dokument/sfs-2008-567.json"]
+    max_pages: 1
+  - id: upphovsratt  # lag om upphovsrätt till litterära och konstnärliga verk, sfs 1960:729
+    urls: ["https://data.riksdagen.se/dokument/sfs-1960-729.json"]
+    max_pages: 1
+  - id: uppfinningar  # lag om rätten till arbetstagares uppfinningar, sfs 1949:345
+    urls: ["https://data.riksdagen.se/dokument/sfs-1949-345.json"]
+    max_pages: 1
   - id: a_kassa  # lag om arbetslöshetsförsäkring, sfs 2024:506
     urls: ["https://data.riksdagen.se/dokument/sfs-2024-506.json"]
+    max_pages: 1
+  - id: sfb  # socialförsäkringsbalk, sfs 2010:110
+    urls: ["https://data.riksdagen.se/dokument/sfs-2010-110.json"]
+    max_pages: 1
+  - id: omstallningsstod  # lag om grundläggande omställnings- och kompetensstöd, sfs 2022:850
+    urls: ["https://data.riksdagen.se/dokument/sfs-2022-850.json"]
+    max_pages: 1
+  - id: omstallningsstudie  # lag om omställningsstudiestöd, sfs 2022:856
+    urls: ["https://data.riksdagen.se/dokument/sfs-2022-856.json"]
     max_pages: 1
   - id: socialtjanstlagen  # socialtjänstlag, sfs 2025:400
     urls: ["https://data.riksdagen.se/dokument/sfs-2025-400.json"]
     max_pages: 1
-  - id: jordabalken  # jordabalk, sfs 1970:994
-    urls: ["https://data.riksdagen.se/dokument/sfs-1970-994.json"]
+  - id: inkomstskatt  # inkomstskattelag, sfs 1999:1229
+    urls: ["https://data.riksdagen.se/dokument/sfs-1999-1229.json"]
+    max_pages: 1
+  - id: forsakringsavtal  # försäkringsavtalslag, sfs 2005:104
+    urls: ["https://data.riksdagen.se/dokument/sfs-2005-104.json"]
+    max_pages: 1
+  - id: patientskada  # patientskadelag, sfs 1996:799
+    urls: ["https://data.riksdagen.se/dokument/sfs-1996-799.json"]
+    max_pages: 1
+  - id: patientlagen  # patientlag, sfs 2014:821
+    urls: ["https://data.riksdagen.se/dokument/sfs-2014-821.json"]
+    max_pages: 1
+  - id: brottsskada  # brottsskadelag, sfs 2014:322
+    urls: ["https://data.riksdagen.se/dokument/sfs-2014-322.json"]
     max_pages: 1
   - id: konsumentkop  # konsumentköplag, sfs 2022:260
     urls: ["https://data.riksdagen.se/dokument/sfs-2022-260.json"]
@@ -44,8 +89,11 @@ sources:
   - id: konsumenttjanst  # konsumenttjänstlag, sfs 1985:716
     urls: ["https://data.riksdagen.se/dokument/sfs-1985-716.json"]
     max_pages: 1
-  - id: konsumentkreditlagen  # konsumentkreditlag, sfs 2010:1846
-    urls: ["https://data.riksdagen.se/dokument/sfs-2010-1846.json"]
+  - id: jordabalken  # jordabalk, sfs 1970:994
+    urls: ["https://data.riksdagen.se/dokument/sfs-1970-994.json"]
+    max_pages: 1
+  - id: utsokningsbalken  # utsökningsbalk, sfs 1981:774
+    urls: ["https://data.riksdagen.se/dokument/sfs-1981-774.json"]
     max_pages: 1
   - id: skuldsanering  # skuldsaneringslag, sfs 2016:675
     urls: ["https://data.riksdagen.se/dokument/sfs-2016-675.json"]
@@ -53,59 +101,222 @@ sources:
   - id: forvaltningslagen  # förvaltningslag, sfs 2017:900
     urls: ["https://data.riksdagen.se/dokument/sfs-2017-900.json"]
     max_pages: 1
-  - id: patientlagen  # patientlag, sfs 2014:821
-    urls: ["https://data.riksdagen.se/dokument/sfs-2014-821.json"]
+  - id: dataskyddslagen  # lag med kompletterande bestämmelser till eu:s dataskyddsförordning, sfs 2018:218
+    urls: ["https://data.riksdagen.se/dokument/sfs-2018-218.json"]
     max_pages: 1
-  - id: patientskada  # patientskadelag, sfs 1996:799
-    urls: ["https://data.riksdagen.se/dokument/sfs-1996-799.json"]
+  - id: regeringsformen  # regeringsformen, sfs 1974:152
+    urls: ["https://data.riksdagen.se/dokument/sfs-1974-152.json"]
     max_pages: 1
-  - id: brottsskada  # brottsskadelag, sfs 2014:322
-    urls: ["https://data.riksdagen.se/dokument/sfs-2014-322.json"]
+  - id: tryckfrihetsforordningen  # tryckfrihetsförordningen, sfs 1949:105
+    urls: ["https://data.riksdagen.se/dokument/sfs-1949-105.json"]
+    max_pages: 1
+  - id: yttrandefrihetsgrundlagen  # yttrandefrihetsgrundlag, sfs 1991:1469
+    urls: ["https://data.riksdagen.se/dokument/sfs-1991-1469.json"]
+    max_pages: 1
+  - id: osl  # offentlighets- och sekretesslag, sfs 2009:400
+    urls: ["https://data.riksdagen.se/dokument/sfs-2009-400.json"]
+    max_pages: 1
+  - id: foraldrabalken  # föräldrabalk, sfs 1949:381
+    urls: ["https://data.riksdagen.se/dokument/sfs-1949-381.json"]
+    max_pages: 1
+  - id: aktenskapsbalken  # äktenskapsbalk, sfs 1987:230
+    urls: ["https://data.riksdagen.se/dokument/sfs-1987-230.json"]
+    max_pages: 1
+  - id: arvdabalken  # ärvdabalk, sfs 1958:637
+    urls: ["https://data.riksdagen.se/dokument/sfs-1958-637.json"]
     max_pages: 1
   - id: sambolagen  # sambolag, sfs 2003:376
     urls: ["https://data.riksdagen.se/dokument/sfs-2003-376.json"]
     max_pages: 1
+  - id: namnlagen  # lag om personnamn, sfs 2016:1013
+    urls: ["https://data.riksdagen.se/dokument/sfs-2016-1013.json"]
+    max_pages: 1
+  - id: god_man_ensamkommande  # lag om god man för ensamkommande barn, sfs 2005:429
+    urls: ["https://data.riksdagen.se/dokument/sfs-2005-429.json"]
+    max_pages: 1
   - id: lvu  # lag med särskilda bestämmelser om vård av unga, sfs 1990:52
     urls: ["https://data.riksdagen.se/dokument/sfs-1990-52.json"]
+    max_pages: 1
+  - id: lvm  # lag om vård av missbrukare i vissa fall, sfs 1988:870
+    urls: ["https://data.riksdagen.se/dokument/sfs-1988-870.json"]
+    max_pages: 1
+  - id: lpt  # lag om psykiatrisk tvångsvård, sfs 1991:1128
+    urls: ["https://data.riksdagen.se/dokument/sfs-1991-1128.json"]
+    max_pages: 1
+  - id: lss  # lag om stöd och service till vissa funktionshindrade, sfs 1993:387
+    urls: ["https://data.riksdagen.se/dokument/sfs-1993-387.json"]
+    max_pages: 1
+  - id: hsl  # hälso- och sjukvårdslag, sfs 2017:30
+    urls: ["https://data.riksdagen.se/dokument/sfs-2017-30.json"]
+    max_pages: 1
+  - id: patientsakerhetslagen  # patientsäkerhetslag, sfs 2010:659
+    urls: ["https://data.riksdagen.se/dokument/sfs-2010-659.json"]
+    max_pages: 1
+  - id: smittskyddslagen  # smittskyddslag, sfs 2004:168
+    urls: ["https://data.riksdagen.se/dokument/sfs-2004-168.json"]
+    max_pages: 1
+  - id: skollagen  # skollag, sfs 2010:800
+    urls: ["https://data.riksdagen.se/dokument/sfs-2010-800.json"]
+    max_pages: 1
+  - id: hogskolelagen  # högskolelag, sfs 1992:1434
+    urls: ["https://data.riksdagen.se/dokument/sfs-1992-1434.json"]
+    max_pages: 1
+  - id: studiestodslagen  # studiestödslag, sfs 1999:1395
+    urls: ["https://data.riksdagen.se/dokument/sfs-1999-1395.json"]
+    max_pages: 1
+  - id: bostadsrattslagen  # bostadsrättslag, sfs 1991:614
+    urls: ["https://data.riksdagen.se/dokument/sfs-1991-614.json"]
+    max_pages: 1
+  - id: hyresforhandlingslagen  # lag om hyresförhandling, sfs 1978:304
+    urls: ["https://data.riksdagen.se/dokument/sfs-1978-304.json"]
+    max_pages: 1
+  - id: bostadsanpassning  # lag om bostadsanpassningsbidrag, sfs 2018:222
+    urls: ["https://data.riksdagen.se/dokument/sfs-2018-222.json"]
+    max_pages: 1
+  - id: pbl  # plan- och bygglag, sfs 2010:900
+    urls: ["https://data.riksdagen.se/dokument/sfs-2010-900.json"]
+    max_pages: 1
+  - id: brottsbalken  # brottsbalk, sfs 1962:700
+    urls: ["https://data.riksdagen.se/dokument/sfs-1962-700.json"]
+    max_pages: 1
+  - id: rattegangsbalken  # rättegångsbalk, sfs 1942:740
+    urls: ["https://data.riksdagen.se/dokument/sfs-1942-740.json"]
+    max_pages: 1
+  - id: kontaktforbud  # lag om kontaktförbud, sfs 1988:688
+    urls: ["https://data.riksdagen.se/dokument/sfs-1988-688.json"]
+    max_pages: 1
+  - id: unga_lagovertradare  # lag med särskilda bestämmelser om unga lagöverträdare, sfs 1964:167
+    urls: ["https://data.riksdagen.se/dokument/sfs-1964-167.json"]
+    max_pages: 1
+  - id: fangelselagen  # fängelselag, sfs 2010:610
+    urls: ["https://data.riksdagen.se/dokument/sfs-2010-610.json"]
+    max_pages: 1
+  - id: hakteslagen  # häkteslag, sfs 2010:611
+    urls: ["https://data.riksdagen.se/dokument/sfs-2010-611.json"]
+    max_pages: 1
+  - id: belastningsregister  # lag om belastningsregister, sfs 1998:620
+    urls: ["https://data.riksdagen.se/dokument/sfs-1998-620.json"]
     max_pages: 1
   - id: rattshjalpslagen  # rättshjälpslag, sfs 1996:1619
     urls: ["https://data.riksdagen.se/dokument/sfs-1996-1619.json"]
     max_pages: 1
+  - id: fpl  # förvaltningsprocesslag, sfs 1971:291
+    urls: ["https://data.riksdagen.se/dokument/sfs-1971-291.json"]
+    max_pages: 1
+  - id: domstolsarenden  # lag om domstolsärenden, sfs 1996:242
+    urls: ["https://data.riksdagen.se/dokument/sfs-1996-242.json"]
+    max_pages: 1
+  - id: frihetsberovande  # lag om ersättning från staten vid frihetsberövanden, sfs 2018:1910
+    urls: ["https://data.riksdagen.se/dokument/sfs-2018-1910.json"]
+    max_pages: 1
   - id: skadestandslagen  # skadeståndslag, sfs 1972:207
     urls: ["https://data.riksdagen.se/dokument/sfs-1972-207.json"]
     max_pages: 1
+  - id: preskriptionslagen  # preskriptionslag, sfs 1981:130
+    urls: ["https://data.riksdagen.se/dokument/sfs-1981-130.json"]
+    max_pages: 1
+  - id: avtalslagen  # lag om avtal och andra rättshandlingar på förmögenhetsrättens område, sfs 1915:218
+    urls: ["https://data.riksdagen.se/dokument/sfs-1915-218.json"]
+    max_pages: 1
+  - id: koplagen  # köplag, sfs 1990:931
+    urls: ["https://data.riksdagen.se/dokument/sfs-1990-931.json"]
+    max_pages: 1
+  - id: konsumentkreditlagen  # konsumentkreditlag, sfs 2010:1846
+    urls: ["https://data.riksdagen.se/dokument/sfs-2010-1846.json"]
+    max_pages: 1
+  - id: distansavtalslagen  # lag om distansavtal och avtal utanför affärslokaler, sfs 2005:59
+    urls: ["https://data.riksdagen.se/dokument/sfs-2005-59.json"]
+    max_pages: 1
+  - id: inkassolagen  # inkassolag, sfs 1974:182
+    urls: ["https://data.riksdagen.se/dokument/sfs-1974-182.json"]
+    max_pages: 1
+  - id: betalningsforelaggande  # lag om betalningsföreläggande och handräckning, sfs 1990:746
+    urls: ["https://data.riksdagen.se/dokument/sfs-1990-746.json"]
+    max_pages: 1
+  - id: konkurslagen  # konkurslag, sfs 1987:672
+    urls: ["https://data.riksdagen.se/dokument/sfs-1987-672.json"]
+    max_pages: 1
+  - id: kreditupplysningslagen  # kreditupplysningslag, sfs 1973:1173
+    urls: ["https://data.riksdagen.se/dokument/sfs-1973-1173.json"]
+    max_pages: 1
+  - id: trafikskadelagen  # trafikskadelag, sfs 1975:1410
+    urls: ["https://data.riksdagen.se/dokument/sfs-1975-1410.json"]
+    max_pages: 1
+  - id: korkortslagen  # körkortslag, sfs 1998:488
+    urls: ["https://data.riksdagen.se/dokument/sfs-1998-488.json"]
+    max_pages: 1
+  - id: trafikbrottslagen  # lag om straff för vissa trafikbrott, sfs 1951:649
+    urls: ["https://data.riksdagen.se/dokument/sfs-1951-649.json"]
+    max_pages: 1
+  - id: felparkeringsavgift  # lag om felparkeringsavgift, sfs 1976:206
+    urls: ["https://data.riksdagen.se/dokument/sfs-1976-206.json"]
+    max_pages: 1
+  - id: fordonslagen  # fordonslag, sfs 2002:574
+    urls: ["https://data.riksdagen.se/dokument/sfs-2002-574.json"]
+    max_pages: 1
+  - id: utlanningslagen  # utlänningslag, sfs 2005:716
+    urls: ["https://data.riksdagen.se/dokument/sfs-2005-716.json"]
+    max_pages: 1
+  - id: medborgarskapslagen  # lag om svenskt medborgarskap, sfs 2001:82
+    urls: ["https://data.riksdagen.se/dokument/sfs-2001-82.json"]
+    max_pages: 1
+  - id: folkbokforingslagen  # folkbokföringslag, sfs 1991:481
+    urls: ["https://data.riksdagen.se/dokument/sfs-1991-481.json"]
+    max_pages: 1
+  - id: skatteforfarandelagen  # skatteförfarandelag, sfs 2011:1244
+    urls: ["https://data.riksdagen.se/dokument/sfs-2011-1244.json"]
+    max_pages: 1
+  - id: aktiebolagslagen  # aktiebolagslag, sfs 2005:551
+    urls: ["https://data.riksdagen.se/dokument/sfs-2005-551.json"]
+    max_pages: 1
+  - id: bokforingslagen  # bokföringslag, sfs 1999:1078
+    urls: ["https://data.riksdagen.se/dokument/sfs-1999-1078.json"]
+    max_pages: 1
+  - id: ekonomiska_foreningar  # lag om ekonomiska föreningar, sfs 2018:672
+    urls: ["https://data.riksdagen.se/dokument/sfs-2018-672.json"]
+    max_pages: 1
+  - id: offentlig_anstallning  # lag om offentlig anställning, sfs 1994:260
+    urls: ["https://data.riksdagen.se/dokument/sfs-1994-260.json"]
+    max_pages: 1
+  - id: vapenlagen  # vapenlag, sfs 2026:408
+    urls: ["https://data.riksdagen.se/dokument/sfs-2026-408.json"]
+    max_pages: 1
+  - id: hundar_katter  # lag om tillsyn över hundar och katter, sfs 2007:1150
+    urls: ["https://data.riksdagen.se/dokument/sfs-2007-1150.json"]
+    max_pages: 1
+  - id: miljobalken  # miljöbalk, sfs 1998:808
+    urls: ["https://data.riksdagen.se/dokument/sfs-1998-808.json"]
+    max_pages: 1
+  - id: skydd_mot_olyckor  # lag om skydd mot olyckor, sfs 2003:778
+    urls: ["https://data.riksdagen.se/dokument/sfs-2003-778.json"]
+    max_pages: 1
 
-  # webbplatser, sorterade efter prioritet
+  # webbplatser
   - id: informationsverige  # länsstyrelserna: samhällsinformation, bara svenska (/sv/)
     urls:
       - "https://www.informationsverige.se/sv/hem.html"
-    max_pages: 150
+    max_pages: 600
   - id: fk  # försäkringskassan, privatperson
     urls:
       - "https://www.forsakringskassan.se/privatperson"
-    max_pages: 100
+    max_pages: 600
   - id: skatteverket  # privatperson: skatt, folkbokföring, dödsfall
     urls:
       - "https://www.skatteverket.se/privat"
-    max_pages: 60
+    max_pages: 600
   - id: domstol  # sveriges domstolar, ämnen (familj, brott, hyra, skulder)
     urls:
       - "https://www.domstol.se/amnen/"
-    max_pages: 80
-  - id: af  # arbetsförmedlingen, arbetssökande
-    urls:
-      - "https://arbetsformedlingen.se/for-arbetssokande"
-    max_pages: 60
-  - id: migrationsverket  # migrationsverket, privatperson (svenska)
-    urls:
-      - "https://www.migrationsverket.se/du-vill-ansoka.html"
-    allow: ["/du-vill-ansoka", "/du-vill-forlanga", "/du-vantar-pa-beslut", "/du-har-fatt-beslut", "/du-har-tillstand-i-sverige", "/lamna-sverige", "/om-det-svenska-samhallet"]
-    max_pages: 50
+    max_pages: 400
   - id: konsumentverket  # konsumentverket inkl. tidigare hallå konsument
     urls:
       - "https://www.konsumentverket.se/konsument/"
     allow: ["/konsument/", "/omrade/"]
-    max_pages: 50
+    max_pages: 400
+  - id: vardguiden  # 1177, så fungerar vården (nationellt)
+    urls:
+      - "https://www.1177.se/sa-fungerar-varden/"
+    max_pages: 200
   - id: kronofogden  # kronofogden, privatperson
     urls:
       - "https://www.kronofogden.se/du-har-fatt-ett-brev"
@@ -114,51 +325,148 @@ sources:
       - "https://www.kronofogden.se/rad-och-stod"
       - "https://www.kronofogden.se/skuldsanering"
       - "https://www.kronofogden.se/sa-funkar-det-hos-kronofogden"
-    max_pages: 50
-  - id: polisen  # polisen, privatperson (svenska)
+    max_pages: 300
+  - id: migrationsverket  # migrationsverket, privatperson (svenska)
     urls:
-      - "https://polisen.se/utsatt-for-brott/"
-      - "https://polisen.se/lagar-och-regler/"
-      - "https://polisen.se/tjanster-tillstand/"
-    max_pages: 40
-  - id: verksamt  # verksamt.se, starta och driva företag
+      - "https://www.migrationsverket.se/du-vill-ansoka.html"
+    allow: ["/du-vill-ansoka", "/du-vill-forlanga", "/du-vantar-pa-beslut", "/du-har-fatt-beslut", "/du-har-tillstand-i-sverige", "/lamna-sverige", "/om-det-svenska-samhallet"]
+    max_pages: 400
+  - id: af  # arbetsförmedlingen, arbetssökande
     urls:
-      - "https://verksamt.se/starta-foretag"
-      - "https://verksamt.se/personal-rekrytering"
-      - "https://verksamt.se/skatter-avgifter"
-      - "https://verksamt.se/avveckla"
-    max_pages: 40
+      - "https://arbetsformedlingen.se/for-arbetssokande"
+    max_pages: 300
   - id: pensionsmynd  # pensionsmyndigheten
     urls:
       - "https://www.pensionsmyndigheten.se/forsta-din-pension"
       - "https://www.pensionsmyndigheten.se/ga-i-pension"
       - "https://www.pensionsmyndigheten.se/for-pensionarer"
-    max_pages: 40
-  - id: vardguiden  # 1177, så fungerar vården (nationellt)
+    max_pages: 300
+  - id: do  # diskrimineringsombudsmannen
     urls:
-      - "https://www.1177.se/sa-fungerar-varden/"
+      - "https://www.do.se/diskriminerad"
+      - "https://www.do.se/jobbet-skolan-samhallet"
+    max_pages: 150
+  - id: imy  # integritetsskyddsmyndigheten, privatperson
+    urls:
+      - "https://www.imy.se/privatperson/"
+    max_pages: 150
+  - id: beo  # barn- och elevombudet (skolinspektionen)
+    urls:
+      - "https://beo.skolinspektionen.se/"
+    max_pages: 100
+  - id: skolverket  # skolverket, för elever och vårdnadshavare
+    urls:
+      - "https://www.skolverket.se/om-skolverket/for-elever-och-vardnadshavare"
+    max_pages: 100
+  - id: csn  # csn, studiestöd
+    urls:
+      - "https://www.csn.se/bidrag-och-lan.html"
+    allow: ["/bidrag-och-lan", "/betala-tillbaka", "/vantar-pa-beslut-eller-pengar", "/om-nagot-hander-eller-andras", "/nar-kommer-pengarna"]
+    max_pages: 250
+  - id: uhr  # universitets- och högskolerådet, studier och antagning
+    urls:
+      - "https://www.uhr.se/studier-och-antagning/"
+    max_pages: 150
+  - id: brottsoffer  # brottsoffermyndigheten
+    urls:
+      - "https://www.brottsoffermyndigheten.se/utsatt-for-brott/"
+      - "https://www.brottsoffermyndigheten.se/sok-ersattning/"
+    max_pages: 150
+  - id: aklagare  # åklagarmyndigheten, berörd av brott
+    urls:
+      - "https://www.aklagare.se/berord-av-brott/"
+      - "https://www.aklagare.se/fran-brott-till-rattegang/"
+    max_pages: 150
+  - id: polisen  # polisen, privatperson (svenska)
+    urls:
+      - "https://polisen.se/utsatt-for-brott/"
+      - "https://polisen.se/lagar-och-regler/"
+      - "https://polisen.se/tjanster-tillstand/"
+    max_pages: 300
+  - id: jo  # justitieombudsmannen
+    urls:
+      - "https://www.jo.se/jo-anmalan/"
+      - "https://www.jo.se/om-jo/uppgift-och-befogenheter/"
     max_pages: 40
+  - id: ivo  # inspektionen för vård och omsorg, privatperson
+    urls:
+      - "https://www.ivo.se/beratta-for-ivo/"
+      - "https://www.ivo.se/om-din-patientjournal/"
+      - "https://www.ivo.se/egen-personlig-assistans/"
+      - "https://www.ivo.se/barn-och-ungdomar/"
+    max_pages: 100
+  - id: sis  # statens institutionsstyrelse (lvu, lvm)
+    urls:
+      - "https://www.stat-inst.se/uppdrag-och-verksamhet/vard-av-unga/"
+      - "https://www.stat-inst.se/vard-och-behandling/"
+      - "https://www.stat-inst.se/familj-och-vanner/"
+      - "https://www.stat-inst.se/vuxna-med-beroende/"
+    max_pages: 100
+  - id: barnombudsmannen  # barnombudsmannen, barnkonventionen
+    urls:
+      - "https://www.barnombudsmannen.se/barnkonventionen/"
+    max_pages: 60
+  - id: lantmateriet  # lantmäteriet, fastighet och mark
+    urls:
+      - "https://www.lantmateriet.se/sv/fastighet-och-mark/"
+    max_pages: 200
+  - id: fi  # finansinspektionen, för konsumenter
+    urls:
+      - "https://www.fi.se/sv/for-konsumenter/"
+    max_pages: 100
+  - id: pts  # post- och telestyrelsen, internet och telefoni
+    urls:
+      - "https://www.pts.se/internet-och-telefoni/"
+    max_pages: 100
+  - id: ei  # energimarknadsinspektionen, konsument
+    urls:
+      - "https://ei.se/konsument"
+    max_pages: 100
   - id: transportstyrelsen  # transportstyrelsen, vägtrafik
     urls:
       - "https://www.transportstyrelsen.se/sv/vagtrafik/korkort/"
       - "https://www.transportstyrelsen.se/sv/vagtrafik/fordon/"
       - "https://www.transportstyrelsen.se/sv/vagtrafik/trafikregler-och-vagmarken/"
-    max_pages: 40
+    max_pages: 300
+  - id: arn  # allmänna reklamationsnämnden
+    urls:
+      - "https://www.arn.se/konsument/"
+      - "https://www.arn.se/tvisteomraden/"
+      - "https://www.arn.se/vanligafall/"
+      - "https://www.arn.se/fragor-och-svar/"
+    max_pages: 150
+  - id: konsumenternas  # konsumenternas försäkrings- och pensionsbyrå
+    urls:
+      - "https://www.konsumenternas.se/forsakringar/"
+      - "https://www.konsumenternas.se/sparande--pension/"
+      - "https://www.konsumenternas.se/konsumentstod/"
+      - "https://www.konsumenternas.se/livssituationer/"
+    max_pages: 300
+  - id: av  # arbetsmiljöverket
+    urls:
+      - "https://www.av.se/arbetsmiljoarbete-och-inspektioner/"
+      - "https://www.av.se/halsa-och-sakerhet/"
+    max_pages: 300
+  - id: krisinformation  # krisinformation, din beredskap
+    urls:
+      - "https://www.krisinformation.se/din-beredskap/"
+    max_pages: 60
+  - id: afa  # afa försäkring, kollektivavtalade försäkringar
+    urls:
+      - "https://www.afaforsakring.se/forsakring"
+    max_pages: 150
+  - id: trr  # trr, omställning för tjänstemän
+    urls:
+      - "https://www.trr.se/privatperson/"
+    max_pages: 100
   - id: unionens  # unionens a-kassa (redan klassad)
     urls:
       - "https://www.unionensakassa.se/"
-    max_pages: 40
-  - id: do  # diskrimineringsombudsmannen
-    urls:
-      - "https://www.do.se/diskriminerad"
-      - "https://www.do.se/jobbet-skolan-samhallet"
-    max_pages: 30
-  - id: brottsoffer  # brottsoffermyndigheten
-    urls:
-      - "https://www.brottsoffermyndigheten.se/utsatt-for-brott/"
-      - "https://www.brottsoffermyndigheten.se/sok-ersattning/"
-    max_pages: 30
+    max_pages: 100
 
-  # nästa i tur om budgeten räcker: pensionsmynd/af med högre tak, imy, arn, csn, aklagare, ivo, konsumenternas, av,
-  # lantmateriet, fi, ei, pts, uhr, beo, skolverket, sis, jo, barnombudsmannen, krisinformation, afa, trr.
-  # större lagar: sfb, föräldrabalken, ärvdabalken, äktenskapsbalken, utsökningsbalken, skollagen, utlänningslagen.
+  # utelämnade efter kontroll:
+  # verksamt.se (innehållet laddas med javascript, 0 tecken), bolagsverket.se (bot-spärr), boverket.se (ingen sektion för privatpersoner),
+  # jk.se och kriminalvarden.se (sökvägar gick inte att verifiera), lagrummet.se (portal med länkar),
+  # naturvardsverket.se (ej kontrollerad), skolinspektionen.se (robots.txt svarade inte, beo används),
+  # föreningar, fack, a-kassor utom unionens, lawline, lagen.nu, kommuner.
+  # ej omkontrollerade sedan förra filen: iaf, tsl, omstallningsfonden, fora, collectum, lof, medlingsinstitutet.

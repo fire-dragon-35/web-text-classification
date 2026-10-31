@@ -5,9 +5,9 @@ from urllib.parse import urldefrag, urljoin
 import lxml.html
 import trafilatura
 
+from extraction.extractor import MIN_CHARS, Extractor
 from extraction.models import FetchResult, Page, Section
 
-MIN_CHARS = 200
 HEADING = re.compile(r"^\\?(#{1,6}) +(.+?) *#*$", re.MULTILINE)
 HEADING_TAGS = ("h1", "h2", "h3", "h4", "h5", "h6")
 CHARSET = re.compile(r"charset=\"?([\w-]+)", re.IGNORECASE)
@@ -65,20 +65,12 @@ def _absolute(href: str, base: str) -> str | None:
         return None
 
 
-class Website:
-    name = "website"
-    content_types: tuple[str, ...] = ("text/html", "application/xhtml+xml")
+class Html(Extractor):
+    content_types = ("text/html", "application/xhtml+xml")
 
     def __init__(self, selector: str | None = None, exclude_selectors: tuple[str, ...] = ()) -> None:
         self._selector = selector
         self._exclude_selectors = exclude_selectors
-
-    @classmethod
-    def matches(cls, url: str) -> bool:
-        return False
-
-    def fetch_url(self, url: str) -> str:
-        return url
 
     def links(self, fetch: FetchResult) -> list[str]:
         hrefs = (_absolute(anchor.get("href", ""), fetch.final_url) for anchor in _tree(fetch).iter("a"))
